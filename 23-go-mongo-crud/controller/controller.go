@@ -6,6 +6,8 @@ import (
 	"log"
 
 	"github.com/spandan114/go-mongo-crud/model"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -36,6 +38,7 @@ func ConnectMongodb() {
 
 //MONGODB helpers
 
+//INSERT
 func InsertOneData(movie model.Netflix) {
 	result, err := collection.InsertOne(context.Background(), movie)
 
@@ -43,4 +46,43 @@ func InsertOneData(movie model.Netflix) {
 		log.Fatal(err)
 	}
 	fmt.Println("Inserted value is :", result.InsertedID)
+}
+
+//UPDATE
+func updateOneMovie(index string) {
+	id, _ := primitive.ObjectIDFromHex(index)
+	filter := bson.M{"_id": id}
+	update := bson.M{"$set": bson.M{"watched": true}}
+
+	result, err := collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("modified count: ", result.ModifiedCount)
+}
+
+//DELETE one movie
+func deleteeOneMovie(movieId string) {
+	id, _ := primitive.ObjectIDFromHex(movieId)
+	filter := bson.M{"_id": id}
+
+	deleteCount, err := collection.DeleteOne(context.Background(), filter)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("MOvie got delete with delete count: ", deleteCount)
+}
+
+//DELETE all movie
+func deleteAllMovies() int64 {
+
+	deleteResult, err := collection.DeleteMany(context.Background(), bson.M{{}}, nill)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("NUmber of movies delete: ", deleteResult.DeletedCount)
+	return deleteResult.DeletedCount
 }
