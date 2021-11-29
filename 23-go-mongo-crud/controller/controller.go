@@ -2,8 +2,10 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/spandan114/go-mongo-crud/model"
 	"go.mongodb.org/mongo-driver/bson"
@@ -78,11 +80,44 @@ func deleteeOneMovie(movieId string) {
 //DELETE all movie
 func deleteAllMovies() int64 {
 
-	deleteResult, err := collection.DeleteMany(context.Background(), bson.M{{}}, nill)
+	deleteResult, err := collection.DeleteMany(context.Background(), bson.M{}, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Println("NUmber of movies delete: ", deleteResult.DeletedCount)
 	return deleteResult.DeletedCount
+}
+
+//GET all movies
+func getAllMovies() []primitive.M {
+	cursor, err := collection.Find(context.Background(), bson.M{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer cursor.Close(context.Background())
+
+	var movies []primitive.M
+	for cursor.Next(context.Background()) {
+		var movie bson.M
+		err := cursor.Decode(movie)
+		if err != nil {
+			log.Fatal(err)
+		}
+		movies = append(movies, movie)
+	}
+	return movies
+}
+
+//CONTROLLER
+
+func GetAllMovies(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	allMovies := getAllMovies()
+	json.NewEncoder(w).Encode(allMovies)
+}
+
+func CreateMovie(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 }
