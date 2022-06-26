@@ -5,10 +5,8 @@
   `go get <libsName>`
 - Install in vendor (install all packages in local machine)\
 `go mod vendor`
-- Remove unused modules\
+- go mod tidy works by loading all of the packages in the main module and all of the packages they import, recursively\
 `go mod tidy`
-  - Get un used modules list\
-  `go mod tidy -v`
 - Build\
 ` go build`
 - Download the missing dependencies without having to run/build your project\
