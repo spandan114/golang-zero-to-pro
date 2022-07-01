@@ -22,7 +22,27 @@ var userCollection *mongo.Collection = database.OpenCollection(database.Client, 
 var validate = validator.New()
 
 func Login() gin.HandlerFunc {
-	return func(ctx *gin.Context) {}
+	return func(ctx *gin.Context) {
+		var user models.User
+		var foundUser models.User
+		if err := ctx.BindJSON(&user); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		err := userCollection.FindOne(context.Background(), bson.M{"email": user.Email}).Decode(&foundUser)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Email or Password is incorrect !"})
+			return
+		}
+
+		passwordIsValid, msg := helpers.VerifyPassword(user.Password, foundUser.Password)
+
+		if passwordIsValid != true {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": msg})
+		}
+
+		ctx.JSON(http.StatusOK, foundUser)
+	}
 }
 
 func Signup() gin.HandlerFunc {
