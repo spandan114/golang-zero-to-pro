@@ -1,13 +1,17 @@
 package helpers
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"os"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	// "github.com/spandan114/golang-zero-to-pro/29-JWT-Auth/database"
-	// "go.mongodb.org/mongo-driver/mongo"
+	"github.com/spandan114/golang-zero-to-pro/29-JWT-Auth/database"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type SignedDetails struct {
@@ -15,11 +19,11 @@ type SignedDetails struct {
 	FirstName string
 	LastName  string
 	Uid       string
-	UserTpe   string
+	UserType  string
 	jwt.StandardClaims
 }
 
-// var userCollection *mongo.Collection = database.OpenCollection(database.Client, "User")
+var userCollection *mongo.Collection = database.OpenCollection(database.Client, "User")
 var SECRET_KEY string = os.Getenv("JWT_SEC")
 
 func GenerateAllTokens(email string, firstName string, lastName string, uid string, userType string) (signedToken string, refreshToken string, err error) {
@@ -28,7 +32,7 @@ func GenerateAllTokens(email string, firstName string, lastName string, uid stri
 		FirstName: firstName,
 		LastName:  lastName,
 		Uid:       uid,
-		UserTpe:   userType,
+		UserType:  userType,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Local().Add(time.Hour * time.Duration(24)).Unix(),
 		},
@@ -51,4 +55,48 @@ func GenerateAllTokens(email string, firstName string, lastName string, uid stri
 		return
 	}
 	return token, refreshToken, err
+}
+
+func UpdateAllTokens(token string, refreshToken string, userId string) {
+	var userObj primitive.D
+	userObj = append(userObj, bson.E{"token", token})
+	userObj = append(userObj, bson.E{"refresh_token", refreshToken})
+
+	filter := bson.M{"user_id": userId}
+
+	_, err := userCollection.UpdateOne(
+		context.Background(),
+		filter,
+		bson.D{
+			{"$set", userObj}},
+	)
+	if err != nil {
+		log.Panic(err)
+	}
+	return
+}
+
+func ValidateToken(signedToken string) (claims *SignedDetails, msg string) {
+	token, err := jwt.ParseWithClaims(
+		signedToken,
+		&SignedDetails{},
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte(SECRET_KEY), nil
+		},
+	)
+
+	if err != nil {
+		msg = err.Error()
+		return
+	}
+	claims, ok := token.Claims.(*SignedDetails)
+	if !ok {
+		msg = fmt.Sprintf("Token is invalid")
+		return
+	}
+	if claims.ExpiresAt < time.Now().Local().Unix() {
+		msg = fmt.Sprintf("Token expired")
+		return
+	}
+	return claims, msg
 }

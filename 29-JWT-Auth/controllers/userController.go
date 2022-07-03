@@ -41,6 +41,13 @@ func Login() gin.HandlerFunc {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": msg})
 		}
 
+		token, refreshToken, _ := helpers.GenerateAllTokens(foundUser.Email, foundUser.FirstName, foundUser.LastName, foundUser.UserID, foundUser.UserType)
+		helpers.UpdateAllTokens(token, refreshToken, foundUser.UserID)
+
+		errMsg := userCollection.FindOne(context.Background(), bson.M{"user_id": foundUser.UserID}).Decode(&foundUser)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+		}
 		ctx.JSON(http.StatusOK, foundUser)
 	}
 }
@@ -85,6 +92,7 @@ func Signup() gin.HandlerFunc {
 		token, refreshToken, _ := helpers.GenerateAllTokens(user.Email, user.FirstName, user.LastName, user.UserID, user.UserType)
 		user.Token = token
 		user.RefreshToken = refreshToken
+		user.Password = helpers.HashPassword(user.Password)
 
 		res, err := userCollection.InsertOne(context.Background(), user)
 
@@ -99,7 +107,24 @@ func Signup() gin.HandlerFunc {
 
 func GetUsers() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		if err := helpers.CheckUserType(ctx, "ADMIN"); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 
+		cursor, err := userCollection.Find(context.Background(), bson.D{{}})
+
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		var allusers []bson.M
+		if err = cursor.All(ctx, &allusers); err != nil {
+			log.Fatal(err)
+		}
+
+		ctx.JSON(http.StatusOK, allusers)
 	}
 }
 
@@ -111,8 +136,11 @@ func GetUserById() gin.HandlerFunc {
 			return
 		}
 
+		fmt.Printf("%v \n", userId)
+
 		var user models.User
-		err := userCollection.FindOne(context.Background(), bson.M{"user_id": userId}).Decode(&user)
+		err := userCollection.FindOne(context.Background(), bson.M{"userid": userId}).Decode(&user)
+
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
